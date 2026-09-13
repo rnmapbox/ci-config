@@ -1,0 +1,31 @@
+name: Rotate CI Mapbox token
+
+on:
+  schedule:
+    # Mondays and Thursdays, 06:00 UTC
+    - cron: '0 6 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rotate token
+        run: ./scripts/rotate-mapbox-token.sh
+        env:
+          MAPBOX_ADMIN_TOKEN: ${{ secrets.MAPBOX_ADMIN_TOKEN }}
+          MAPBOX_USERNAME: ${{ vars.MAPBOX_USERNAME }}
+
+      - name: Commit rotated token
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mapbox-ci-token.*.enc
+          git diff --cached --quiet && exit 0
+          git commit -m "rotate ci token"
+          git push
