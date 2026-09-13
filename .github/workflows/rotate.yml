@@ -15,24 +15,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug list available scopes
+      - name: Debug scope isolation
         run: |
-          curl -fsS "https://api.mapbox.com/scopes/v1/${MAPBOX_USERNAME}?access_token=${MAPBOX_ADMIN_TOKEN}" | jq .
+          API="https://api.mapbox.com/tokens/v2/${MAPBOX_USERNAME}"
+          for scope in styles:tiles styles:read fonts:read; do
+            echo "--- testing [\"$scope\"] ---"
+            resp=$(curl -sS -X POST "${API}?access_token=${MAPBOX_ADMIN_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              -d "{\"note\":\"debug-scope-test\",\"scopes\":[\"$scope\"]}" \
+              -w $'\n%{http_code}')
+            code=$(tail -n1 <<< "$resp")
+            body=$(sed '$d' <<< "$resp")
+            echo "HTTP $code: $body"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+              id=$(jq -r .id <<< "$body")
+              curl -sS -X DELETE "${API}/${id}?access_token=${MAPBOX_ADMIN_TOKEN}" > /dev/null
+              echo "(cleaned up test token $id)"
+            fi
+          done
         env:
           MAPBOX_ADMIN_TOKEN: ${{ secrets.MAPBOX_ADMIN_TOKEN }}
           MAPBOX_USERNAME: ${{ vars.MAPBOX_USERNAME }}
-
-      - name: Rotate token
-        run: ./scripts/rotate-mapbox-token.sh
-        env:
-          MAPBOX_ADMIN_TOKEN: ${{ secrets.MAPBOX_ADMIN_TOKEN }}
-          MAPBOX_USERNAME: ${{ vars.MAPBOX_USERNAME }}
-
-      - name: Commit rotated token
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add mapbox-ci-token.*.enc
-          git diff --cached --quiet && exit 0
-          git commit -m "rotate ci token"
-          git push
