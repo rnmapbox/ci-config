@@ -15,6 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug list available scopes
+        run: |
+          curl -fsS "https://api.mapbox.com/scopes/v1/${MAPBOX_USERNAME}?access_token=${MAPBOX_ADMIN_TOKEN}" | jq .
+        env:
+          MAPBOX_ADMIN_TOKEN: ${{ secrets.MAPBOX_ADMIN_TOKEN }}
+          MAPBOX_USERNAME: ${{ vars.MAPBOX_USERNAME }}
+
       - name: Rotate token
         run: ./scripts/rotate-mapbox-token.sh
         env:
