@@ -18,7 +18,7 @@ jobs:
       - name: Debug scope isolation
         run: |
           API="https://api.mapbox.com/tokens/v2/${MAPBOX_USERNAME}"
-          for scope in styles:tiles styles:read fonts:read; do
+          for scope in styles:tiles styles:read fonts:read tokens:read; do
             echo "--- testing [\"$scope\"] ---"
             resp=$(curl -sS -X POST "${API}?access_token=${MAPBOX_ADMIN_TOKEN}" \
               -H 'Content-Type: application/json' \
