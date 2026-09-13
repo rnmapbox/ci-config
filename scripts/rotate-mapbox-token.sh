@@ -11,7 +11,7 @@ set -euo pipefail
 
 KEY_VERSION=v1
 NOTE_PREFIX="rnmapbox-ci-rotated"
-SCOPES='["styles:tiles","styles:read","fonts:read","datasets:read"]'
+SCOPES='["styles:tiles","styles:read","fonts:read"]'
 API="https://api.mapbox.com/tokens/v2/${MAPBOX_USERNAME}"
 
 # Prints the response body on stdout; on a non-2xx status prints method/URL/body
