@@ -1,7 +1,8 @@
 # ci-config
 
-Holds the rotating public Mapbox access token used by `rnmapbox/maps` CI for
-fork PRs, where GitHub Actions provides no secrets.
+Holds the rotating public Mapbox access tokens used by `rnmapbox/maps` CI for
+fork PRs, where GitHub Actions provides no secrets, and by the web/Expo Snack
+examples.
 
 ## Security model
 
@@ -23,17 +24,27 @@ The AES layer is **obfuscation only**: it keeps the raw `pk.` string out of
 GitHub secret scanning and token-scraper bots. The obfuscation key is public
 (`keys/v1.key`, mirrored in `scripts/ci/fetch-mapbox-token.sh` in the maps repo).
 
-URL restrictions (`allowedUrls`) were considered and rejected: they rely on the
-browser Referer header and don't work with the native Maps SDK, which the iOS
-Detox CI job uses — a restricted token would break the only job that renders maps.
+URL restrictions (`allowedUrls`) were considered and rejected for the CI token:
+they rely on the browser Referer header and don't work with the native Maps SDK,
+which the iOS Detox CI job uses — a restricted token would break the only job
+that renders maps.
+
+The Snack token is a separate token (note prefix `rnmapbox-snack-rotated`) so
+Snack traffic can be traced and revoked without touching CI. It only runs in
+browsers, so it is restricted to `https://snack-runtime.eascdn.net` (Snack's web
+player), `https://snack.expo.dev` and `https://rnmapbox.github.io`. It is
+base64-encoded rather than AES-obfuscated so browser JS can decode it with
+`atob`; that still keeps the raw `pk.` string out of scrapers.
 
 ## Files
 
 - `mapbox-ci-token.v1.enc` — the current token, AES-256-CBC (`-md sha256`, base64,
   keyed with `keys/v1.key`). Written by the rotate workflow.
+- `mapbox-snack-token.txt` — the current Snack token, base64. Written by the
+  rotate workflow.
 - `keys/v1.key` — obfuscation key, versioned.
-- `scripts/rotate-mapbox-token.sh` — creates a fresh token via the Mapbox Tokens
-  API, publishes it, deletes expired rotated tokens.
+- `scripts/rotate-mapbox-token.sh ci|snack` — creates a fresh token of that kind
+  via the Mapbox Tokens API, publishes it, deletes expired tokens of that kind.
 
 Decode manually:
 
@@ -42,14 +53,20 @@ curl -fsSL https://raw.githubusercontent.com/rnmapbox/ci-config/main/mapbox-ci-t
   | openssl enc -d -aes-256-cbc -base64 -A -md sha256 -k "$(cat keys/v1.key)"
 ```
 
+Fetch the Snack token from JS:
+
+```js
+const token = atob((await (await fetch('https://raw.githubusercontent.com/rnmapbox/ci-config/main/mapbox-snack-token.txt')).text()).trim());
+```
+
 ## Setup
 
 1. Repo secret `MAPBOX_ADMIN_TOKEN`: an `sk.` token with `tokens:read` +
    `tokens:write` scopes (create at https://account.mapbox.com/access-tokens/).
 2. Repo variable `MAPBOX_USERNAME`: the Mapbox account username the tokens
    belong to.
-3. Run the "Rotate CI Mapbox token" workflow manually once to seed
-   `mapbox-ci-token.v1.enc`.
+3. Run the "Rotate Mapbox tokens" workflow manually once to seed
+   `mapbox-ci-token.v1.enc` and `mapbox-snack-token.txt`.
 
 ## Rotating the obfuscation key
 
